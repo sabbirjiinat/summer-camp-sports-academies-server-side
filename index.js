@@ -27,7 +27,32 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+      await client.connect();
+      
+    const sliderCollection = client.db('sports-academies').collection('slider')
+    const userCollection = client.db('sports-academies').collection('users')
+
+    //get slider information
+    app.get('/slider', async (req, res) => {
+      const result = await sliderCollection.find().toArray()
+      res.send(result)
+    })
+    
+    
+      
+      //crete user
+      app.put('/users/:email', async (req, res) => {
+          const email = req.params.email;
+          const user = req.body;
+          const query = { email: email }
+          const options = { upsert: true };
+          const updatedDoc = {
+              $set: user
+          }
+          const result = await userCollection.updateOne(query, updatedDoc, options)
+          res.send(result)
+          
+      })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
