@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const app = express()
 require('dotenv').config();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken')
 const morgan = require('morgan')
 const port = process.env.PORT || 5000;
@@ -49,6 +49,7 @@ async function run() {
 
     const sliderCollection = client.db('sports-academies').collection('slider')
     const userCollection = client.db('sports-academies').collection('users')
+    const classCollection = client.db('sports-academies').collection('class')
 
     //jwt
     app.post('/jwt', (req, res) => {
@@ -94,11 +95,11 @@ async function run() {
       res.send(admin)
     })
 
-    //get instructor for dashboard
+    // get instructor for dashboard
     app.get('/users/instructor/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
       if (req.decoded.email !== email) {
-        return res.send({ instructor: false })
+        return res.send({instructor:false})
       }
       const query = { email: email }
       const user = await userCollection.findOne(query)
@@ -120,6 +121,34 @@ async function run() {
       const result = await userCollection.updateOne(query, updatedDoc, options)
       res.send(result)
 
+    })
+
+    //get all class for admin 
+    app.get('/classes',verifyJWT,verifyAdmin, async (req, res) => {
+      const result = await classCollection.find().toArray()
+      res.send(result)
+    })
+
+    //add new sport class
+    app.post('/classes', async (req, res) => {
+      const data = req.body;
+      const result = await classCollection.insertOne(data)
+      res.send(result)
+
+    })
+
+    //update class status
+    app.patch('/classes/:id', async (req, res) => {
+      const id = req.params.id;
+      const status = req.body;
+      const query = { _id: new ObjectId(id) }
+      const updateDoc = {
+        $set: {
+          status:status
+        },
+      };
+      const result = await classCollection.updateOne(query, updateDoc);
+      res.send(result)
     })
 
     // Send a ping to confirm a successful connection
