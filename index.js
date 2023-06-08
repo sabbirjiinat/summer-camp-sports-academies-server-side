@@ -57,8 +57,17 @@ async function run() {
       res.send({ token })
     })
 
+    //verify admin
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email }
+      const user = await userCollection.findOne(query)
+      if (user?.role !== 'admin') {
+        return res.status(403).send({ error: true, message: 'forbidden access' })
+      }
+      next()
 
-
+    }
 
     //get slider information
     app.get('/slider', async (req, res) => {
@@ -67,7 +76,7 @@ async function run() {
     })
 
     //get al user
-    app.get('/users', verifyJWT, async (req, res) => {
+    app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result)
     })
@@ -77,13 +86,25 @@ async function run() {
       const decodedEmail = req.decoded.email;
       const email = req.params.email;
       if (email !== decodedEmail) {
-        return res.send({admin:false})
+        return res.send({ admin: false })
       }
       const query = { email: email }
       const user = await userCollection.findOne(query)
-      console.log(user);
       const admin = { admin: user?.role === 'admin' }
       res.send(admin)
+    })
+
+    //get instructor for dashboard
+    app.get('/users/instructor/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      if (req.decoded.email !== email) {
+        return res.send({ instructor: false })
+      }
+      const query = { email: email }
+      const user = await userCollection.findOne(query)
+      const instructor = { instructor: user?.role === 'instructor' }
+      res.send(instructor)
+
     })
 
 
