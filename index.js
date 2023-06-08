@@ -13,15 +13,15 @@ app.use(cors())
 app.use(express.json())
 app.use(morgan('dev'))
 
-const verifyJWT = (req,res,next) => {
+const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
-    return res.status(401).send({error:true,message:'UnAuthorization access'})
+    return res.status(401).send({ error: true, message: 'UnAuthorization access' })
   }
   const token = authorization.split(' ')[1]
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (error, decoded) => {
     if (error) {
-      return res.status(401).send({error:true,message:'UnAuthorization access'})
+      return res.status(401).send({ error: true, message: 'UnAuthorization access' })
     }
     req.decoded = decoded;
     next()
@@ -45,18 +45,20 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-      await client.connect();
-      
+    await client.connect();
+
     const sliderCollection = client.db('sports-academies').collection('slider')
     const userCollection = client.db('sports-academies').collection('users')
 
-     //jwt
-     app.post('/jwt', (req, res) => {
-       const email = req.body;
-       const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
-      res.send({token})
+    //jwt
+    app.post('/jwt', (req, res) => {
+      const email = req.body;
+      const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+      res.send({ token })
     })
-    
+
+
+
 
     //get slider information
     app.get('/slider', async (req, res) => {
@@ -64,25 +66,41 @@ async function run() {
       res.send(result)
     })
 
-   
-      //crete user
-      app.put('/users/:email', async (req, res) => {
-          const email = req.params.email;
-          const user = req.body;
-          const query = { email: email }
-          const options = { upsert: true };
-          const updatedDoc = {
-              $set: user
-          }
-          const result = await userCollection.updateOne(query, updatedDoc, options)
-          res.send(result)
-          
-      })
     //get al user
     app.get('/users', verifyJWT, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result)
     })
+
+    //get admin for secure dashboard
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+      const decodedEmail = req.decoded.email;
+      const email = req.params.email;
+      if (email !== decodedEmail) {
+        return res.send({admin:false})
+      }
+      const query = { email: email }
+      const user = await userCollection.findOne(query)
+      console.log(user);
+      const admin = { admin: user?.role === 'admin' }
+      res.send(admin)
+    })
+
+
+    //crete user
+    app.put('/users/:email', async (req, res) => {
+      const email = req.params.email;
+      const user = req.body;
+      const query = { email: email }
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: user
+      }
+      const result = await userCollection.updateOne(query, updatedDoc, options)
+      res.send(result)
+
+    })
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
@@ -96,10 +114,10 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-    res.send('Summer camp sports academies is running')
+  res.send('Summer camp sports academies is running')
 })
 
 
 app.listen(port, () => {
-    console.log(`Summer camp sports academies is running on port :  ${port}`);
+  console.log(`Summer camp sports academies is running on port :  ${port}`);
 })
