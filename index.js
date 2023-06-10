@@ -135,7 +135,7 @@ async function run() {
     })
 
     //get all class for admin 
-    app.get('/classes', async (req, res) => {
+    app.get('/classes', async  (req, res) => {
       const result = await classCollection.find().toArray()
       res.send(result)
     })
@@ -148,8 +148,15 @@ async function run() {
       res.send(result)
     })
 
+    app.get('/classes/single/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await classCollection.findOne(query)
+      res.send(result)
+    })
+
     //get approved classes
-    app.get('/classes/approve-classes/:approve', async (req, res) => {
+    app.get('/approve-class/:approve', async (req, res) => {
       const approve = req.params.approve;
       console.log(approve);
       const query = { status: approve };
@@ -163,6 +170,21 @@ async function run() {
       const result = await classCollection.insertOne(data)
       res.send(result)
 
+    })
+    app.put('/classes/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const sport = req.body;
+      const updateDoc = {
+        $set: {
+          className:sport.className,
+          availableSeat:sport.availableSeat,
+          price:sport.price, 
+          image:sport.image
+        },
+      };
+      const result = await classCollection.updateOne(filter, updateDoc)
+      res.send(result)
     })
 
     //update class status
