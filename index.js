@@ -218,6 +218,14 @@ async function run() {
       res.send({insertMethod,deleteMethod})
     })
 
+    app.get('/payment/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { studentEmail: email }
+      const result = await paymentCollection.find(query).sort({ date: -1}).toArray()
+      res.send(result)
+
+    })
+
 
     app.post("/create-payment-intent",verifyJWT, async (req, res) => {
       const { amount } = req.body;
