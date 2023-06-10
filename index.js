@@ -5,6 +5,7 @@ require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken')
 const morgan = require('morgan')
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY)
 const port = process.env.PORT || 5000;
 
 
@@ -50,6 +51,8 @@ async function run() {
     const sliderCollection = client.db('sports-academies').collection('slider')
     const userCollection = client.db('sports-academies').collection('users')
     const classCollection = client.db('sports-academies').collection('class')
+    const sportsCollection = client.db('sports-academies').collection('sports')
+    const paymentCollection = client.db('sports-academies').collection('payment')
 
     //jwt
     app.post('/jwt', (req, res) => {
@@ -107,6 +110,14 @@ async function run() {
       res.send(instructor)
 
     })
+    
+    //get instructors
+    app.get('/users/:instructors', async (req, res) => {
+      const instructors = req.params.instructors;
+      const query = { role: instructors }
+      const result = await userCollection.find(query).toArray()
+      res.send(result)
+    })
 
 
     //crete user
@@ -124,8 +135,25 @@ async function run() {
     })
 
     //get all class for admin 
-    app.get('/classes',verifyJWT,verifyAdmin, async (req, res) => {
+    app.get('/classes', async (req, res) => {
       const result = await classCollection.find().toArray()
+      res.send(result)
+    })
+
+    //get class for instructor
+    app.get('/classes/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await classCollection.find(query).toArray()
+      res.send(result)
+    })
+
+    //get approved classes
+    app.get('/classes/approve-classes/:approve', async (req, res) => {
+      const approve = req.params.approve;
+      console.log(approve);
+      const query = { status: approve };
+      const result = await classCollection.find(query).toArray()
       res.send(result)
     })
 
@@ -143,12 +171,66 @@ async function run() {
       const status = req.body;
       const query = { _id: new ObjectId(id) }
       const updateDoc = {
-        $set: {
-          status:status
-        },
+        $set: status
       };
       const result = await classCollection.updateOne(query, updateDoc);
       res.send(result)
+    })
+
+    //bookmark sports 
+    app.post('/sports', async (req, res) => {
+      const sports = req.body;
+      const result = await sportsCollection.insertOne(sports)
+      res.send(result)
+    })
+
+    //get sports for logged in user
+    app.get('/sports', async (req, res) => {
+      const email = req.query.studentEmail;
+      if (!email) {
+        res.send([])
+      }
+      const query = { studentEmail: email }
+      const result = await sportsCollection.find(query).toArray()
+      res.send(result)
+    })
+    
+    app.get('/sports/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await sportsCollection.findOne(query)
+      res.send(result)
+    })
+
+    //delete sports of logged in user
+    app.delete('/sports/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await sportsCollection.deleteOne(query);
+      res.send(result)
+    })
+
+    app.post('/payment', async (req, res) => {
+      const payment = req.body;
+      const insertMethod = await paymentCollection.insertOne(payment)
+      const query = { _id: new ObjectId(payment.bookmarkedId) }
+      const deleteMethod = await sportsCollection.deleteOne(query)
+      res.send({insertMethod,deleteMethod})
+    })
+
+
+    app.post("/create-payment-intent",verifyJWT, async (req, res) => {
+      const { amount } = req.body;
+      const price = amount * 100;
+      console.log(price);
+      const paymentIntent = await stripe.paymentIntents.create({
+       amount: price,
+        currency: 'usd',
+        payment_method_types: ['card']
+      })
+      res.send({
+        clientSecret:paymentIntent.client_secret
+      })
     })
 
     // Send a ping to confirm a successful connection
